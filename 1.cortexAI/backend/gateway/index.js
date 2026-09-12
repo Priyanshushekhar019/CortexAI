@@ -11,9 +11,24 @@ import morgan from "morgan"
 const port =process.env.PORT
 
 const app=express()
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URL?.replace(/\/$/, ""),
+    "http://localhost:5173",
+    "https://cortex-ai-mu-two.vercel.app"
+].filter(Boolean);
+
 app.use(cors({
-    origin:process.env.FRONTEND_URL,
-    credentials:true
+    origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        const cleanOrigin = origin.replace(/\/$/, "");
+        const isAllowed = allowedOrigins.some(o => o.replace(/\/$/, "") === cleanOrigin);
+        if (isAllowed) {
+            return callback(null, true);
+        }
+        return callback(null, origin);
+    },
+    credentials: true
 }))
 app.use(morgan("dev"))
 app.use(cookieParser())
