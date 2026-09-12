@@ -5,7 +5,7 @@ import router from "./routes/chat.routes.js"
 
 dotenv.config()
 
-const port =process.env.PORT
+const port = process.env.CHAT_PORT || 8002
 
 const app=express()
 app.use(express.json())

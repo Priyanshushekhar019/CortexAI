@@ -4,7 +4,7 @@ import connectDb from "./config/db.js"
 import router from "./routes/auth.route.js"
 dotenv.config()
 
-const port =process.env.PORT
+const port = process.env.AUTH_PORT || 8001
 
 const app=express()
 app.use(express.json())

@@ -32,15 +32,25 @@ app.use(cors({
 }))
 app.use(morgan("dev"))
 app.use(cookieParser())
-app.use("/api/auth",proxy(process.env.AUTH_SERVICE))
-app.use("/api/chat",protect,proxyWithHeader(process.env.CHAT_SERVICE))
-app.use("/api/agent",protect,proxyWithHeader(process.env.AGENT_SERVICE))
-app.use("/api/billing",protect,proxyWithHeader(process.env.BILLING_SERVICE))
-app.get("/api/me",protect,getCurrentUser)
-app.get("/",(req,res)=>{
-    res.json({message:"hello from gateway v5"})
+const authService = process.env.AUTH_SERVICE || "http://localhost:8001"
+const chatService = process.env.CHAT_SERVICE || "http://localhost:8002"
+const agentService = process.env.AGENT_SERVICE || "http://localhost:8003"
+const billingService = process.env.BILLING_SERVICE || "http://localhost:8004"
+
+app.use("/api/auth", proxy(authService, {
+    proxyErrorHandler: function(err, res, next) {
+        console.error("Auth proxy error:", err);
+        res.status(500).json({ message: "Auth service connection error", error: err?.message });
+    }
+}))
+app.use("/api/chat", protect, proxyWithHeader(chatService))
+app.use("/api/agent", protect, proxyWithHeader(agentService))
+app.use("/api/billing", protect, proxyWithHeader(billingService))
+app.get("/api/me", protect, getCurrentUser)
+app.get("/", (req, res) => {
+    res.json({ message: "hello from gateway v5" })
 })
 
-app.listen(port,()=>{
+app.listen(port, () => {
     console.log(`gateway started at ${port}`)
 })
