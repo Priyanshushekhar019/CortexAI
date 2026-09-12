@@ -1,3 +1,4 @@
+import crypto from "crypto"
 import { getAuth } from "firebase-admin/auth"
 import { app } from "../config/firebase.js"
 import User from "../models/user.model.js"
@@ -7,6 +8,10 @@ import redis from "../../../shared/redis/redis.js"
 export const login = async (req, res) => {
     try {
         const { token } = req.body
+        if (!token) {
+            return res.status(400).json({ message: "Token is required" })
+        }
+
         const decoded = await getAuth(app).verifyIdToken(token)
         let user = await User.findOne({
             firebaseUid: decoded.uid
@@ -15,9 +20,9 @@ export const login = async (req, res) => {
         if (!user) {
             user = await User.create({
                 firebaseUid: decoded.uid,
-                name: decoded.name,
+                name: decoded.name || decoded.email?.split("@")[0] || "User",
                 email: decoded.email,
-                avatar: decoded.picture
+                avatar: decoded.picture || ""
             })
         }
 
@@ -36,22 +41,20 @@ export const login = async (req, res) => {
             planExpiresAt: user.planExpiresAt
         }), "EX", 7 * 24 * 60 * 60)
 
-
-
-
         const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.FRONTEND_URL?.includes("vercel.app"));
 
         res.cookie("session", sessionId, {
             httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? "none" : "lax",
+            secure: true,
+            sameSite: "none",
             maxAge: 7 * 24 * 60 * 60 * 1000
         })
 
         return res.status(200).json(user)
 
     } catch (error) {
-        return res.status(500).json({ message: `login error ${error}` })
+        console.error("Auth login error:", error)
+        return res.status(500).json({ message: `login error ${error?.message || error}` })
     }
 }
 
