@@ -9,7 +9,6 @@ export const chatAgent = async (state) => {
         await checkAgentLimit(state.userId, "chat")
 
         const llm = await getModel("chat")
-
         const history = (await getMemory(state.conversationId)) || []
 
         const searchContext = state.searchResults ? `
@@ -29,6 +28,7 @@ ${state.searchResults ? `Rules for search:
 ` : `Rules:
 - For simple questions, greetings, and short queries, respond naturally in plain text.
 - For technical, educational, coding, or detailed topics, use clean Markdown.
+- If the user asks for diagrams, workflows, architectures, flowcharts, or mind maps, provide a clean Mermaid.js code block using \`\`\`mermaid ... \`\`\`.
 `}
 
 Formatting Guidelines:
