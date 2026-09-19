@@ -6,6 +6,7 @@ const Limits = {
     pdf: 5,
     ppt: 5,
     image: 5,
+    vision: 5,
     search: 5
 }
 
@@ -36,15 +37,10 @@ export const checkAgentLimit = async (userId, agent) => {
         }
 
         throw error
-  
-}
+    }
 
-return {
-    remaining: max - count,
-    limit: max
- 
-}
-  
-
-   
+    return {
+        remaining: max - count,
+        limit: max
+    }
 }

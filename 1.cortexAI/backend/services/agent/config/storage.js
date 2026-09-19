@@ -27,18 +27,32 @@ const getServiceAccount = () => {
 
   for (const filePath of possiblePaths) {
     if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      try {
+        return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      } catch (e) {
+        console.error("Error reading service account file:", filePath, e);
+      }
     }
   }
 
-  throw new Error("Firebase serviceAccountKey.json or FIREBASE_SERVICE_ACCOUNT not found!");
+  return null;
 };
 
-const serviceAccount = getServiceAccount();
+let bucket = null;
 
-const app = getApps().length === 0 ? initializeApp({
-  credential: cert(serviceAccount),
-  storageBucket: "cortexai-54a5c.firebasestorage.app"
-}) : getApps()[0];
+try {
+  const serviceAccount = getServiceAccount();
+  if (serviceAccount) {
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || "cortexai-54a5c.firebasestorage.app";
+    const app = getApps().length === 0 ? initializeApp({
+      credential: cert(serviceAccount),
+      storageBucket: bucketName
+    }) : getApps()[0];
 
-export const bucket = getStorage(app).bucket("cortexai-54a5c.firebasestorage.app");
+    bucket = getStorage(app).bucket(bucketName);
+  }
+} catch (e) {
+  console.warn("Firebase Storage initialization warning:", e.message);
+}
+
+export { bucket };
