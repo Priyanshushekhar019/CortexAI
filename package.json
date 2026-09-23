@@ -1,0 +1,13 @@
+{
+  "name": "cortex-ai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix 1.cortexAI/backend run build",
+    "start": "npm --prefix 1.cortexAI/backend start",
+    "postinstall": "npm --prefix 1.cortexAI/backend run postinstall"
+  },
+  "dependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

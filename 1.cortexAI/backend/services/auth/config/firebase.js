@@ -6,9 +6,11 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const getServiceAccount = () => {
+  let sa = null;
+
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
-      return typeof process.env.FIREBASE_SERVICE_ACCOUNT === "string"
+      sa = typeof process.env.FIREBASE_SERVICE_ACCOUNT === "string"
         ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
         : process.env.FIREBASE_SERVICE_ACCOUNT;
     } catch (e) {
@@ -16,25 +18,36 @@ const getServiceAccount = () => {
     }
   }
 
-  const possiblePaths = [
-    path.join(__dirname, "../serviceAccountKey.json"),
-    path.join(process.cwd(), "serviceAccountKey.json"),
-    path.join(process.cwd(), "services/auth/serviceAccountKey.json"),
-    path.join(process.cwd(), "1.cortexAI/backend/services/auth/serviceAccountKey.json"),
-    "/etc/secrets/serviceAccountKey.json"
-  ];
+  if (!sa) {
+    const possiblePaths = [
+      path.join(__dirname, "../serviceAccountKey.json"),
+      path.join(process.cwd(), "serviceAccountKey.json"),
+      path.join(process.cwd(), "services/auth/serviceAccountKey.json"),
+      path.join(process.cwd(), "1.cortexAI/backend/services/auth/serviceAccountKey.json"),
+      "/etc/secrets/serviceAccountKey.json"
+    ];
 
-  for (const filePath of possiblePaths) {
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    for (const filePath of possiblePaths) {
+      if (fs.existsSync(filePath)) {
+        try {
+          sa = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+          break;
+        } catch (e) {
+          console.error("Error reading service account file:", e);
+        }
+      }
     }
   }
 
-  throw new Error("Firebase serviceAccountKey.json or FIREBASE_SERVICE_ACCOUNT not found!");
+  if (sa && sa.private_key && typeof sa.private_key === "string") {
+    sa.private_key = sa.private_key.replace(/\\n/g, "\n");
+  }
+
+  return sa;
 };
 
 const serviceAccount = getServiceAccount();
 
-export const app = getApps().length === 0 ? initializeApp({
-  credential: cert(serviceAccount)
-}) : getApps()[0];
+export const app = getApps().length === 0 && serviceAccount
+  ? initializeApp({ credential: cert(serviceAccount) })
+  : (getApps()[0] || null);

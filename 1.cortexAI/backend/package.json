@@ -5,16 +5,22 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "index.js",
+  "main": "gateway/index.js",
+  "workspaces": [
+    "gateway",
+    "services/*"
+  ],
   "scripts": {
     "dev": "concurrently -n \"GATEWAY,AUTH,CHAT,AGENT,BILLING\" -c \"blue,green,yellow,magenta,cyan\" \"npm --prefix gateway run dev\" \"npm --prefix services/auth run dev\" \"npm --prefix services/chat run dev\" \"npm --prefix services/agent run dev\" \"npm --prefix services/billing run dev\"",
-    "start": "concurrently -n \"GATEWAY,AUTH,CHAT,AGENT,BILLING\" -c \"blue,green,yellow,magenta,cyan\" \"npm --prefix gateway start\" \"npm --prefix services/auth start\" \"npm --prefix services/chat start\" \"npm --prefix services/agent start\" \"npm --prefix services/billing start\""
+    "start": "concurrently -n \"GATEWAY,AUTH,CHAT,AGENT,BILLING\" -c \"blue,green,yellow,magenta,cyan\" \"npm --prefix gateway start\" \"npm --prefix services/auth start\" \"npm --prefix services/chat start\" \"npm --prefix services/agent start\" \"npm --prefix services/billing start\"",
+    "build": "npm run install:all",
+    "postinstall": "npm run install:all",
+    "install:all": "npm --prefix gateway install && npm --prefix services/auth install && npm --prefix services/chat install && npm --prefix services/agent install && npm --prefix services/billing install"
   },
   "dependencies": {
+    "concurrently": "^9.1.2",
     "dotenv": "^17.4.2",
     "ioredis": "^5.11.1"
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.2"
   }
 }
+
