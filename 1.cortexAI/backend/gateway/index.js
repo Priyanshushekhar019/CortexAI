@@ -2,44 +2,34 @@ import express from "express"
 import dotenv from "dotenv"
 import proxy from "express-http-proxy"
 dotenv.config()
-import cors from "cors"
 import cookieParser from "cookie-parser"
 import { getCurrentUser } from "./controllers/user.controller.js"
 import protect from "./middleware/auth.middleware.js"
 import { proxyWithHeader } from "./utils/proxyWithHeader.js"
 import morgan from "morgan"
+
 const port = process.env.PORT || 8000
 
 const app = express()
-const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    process.env.FRONTEND_URL?.replace(/\/$/, ""),
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:3000",
-    "https://cortex-ai-mu-two.vercel.app"
-].filter(Boolean);
+app.set("trust proxy", 1)
 
-const corsOptions = {
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        const cleanOrigin = origin.replace(/\/$/, "");
-        const isAllowed = allowedOrigins.some(o => o.replace(/\/$/, "") === cleanOrigin) ||
-                          origin.endsWith(".vercel.app") ||
-                          origin.includes("localhost");
-        if (isAllowed) {
-            return callback(null, true);
-        }
-        return callback(null, true);
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "Accept"],
-    optionsSuccessStatus: 200
-};
+// Comprehensive CORS Middleware for all incoming origins and preflight
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-user-id, Accept, Origin, X-Requested-With");
+        res.setHeader("Access-Control-Expose-Headers", "Set-Cookie");
+    }
 
-app.use(cors(corsOptions))
-app.options("*", cors(corsOptions))
+    if (req.method === "OPTIONS") {
+        return res.status(200).end();
+    }
+    next();
+});
+
 app.use(morgan("dev"))
 app.use(cookieParser())
 
@@ -50,6 +40,13 @@ const billingService = process.env.BILLING_SERVICE || "http://localhost:8004"
 
 app.use("/api/auth", proxy(authService, {
     timeout: 120000,
+    userResHeaderDecorator(headers, userReq) {
+        if (userReq.headers.origin) {
+            headers["access-control-allow-origin"] = userReq.headers.origin;
+            headers["access-control-allow-credentials"] = "true";
+        }
+        return headers;
+    },
     proxyErrorHandler: function(err, res, next) {
         console.error("Auth proxy error:", err);
         res.status(500).json({ message: "Auth service connection error", error: err?.message });
@@ -60,16 +57,24 @@ app.use("/api/agent", protect, proxyWithHeader(agentService))
 app.use("/api/billing", protect, proxyWithHeader(billingService))
 app.use("/api/files", proxy(agentService, {
     timeout: 120000,
+    userResHeaderDecorator(headers, userReq) {
+        if (userReq.headers.origin) {
+            headers["access-control-allow-origin"] = userReq.headers.origin;
+            headers["access-control-allow-credentials"] = "true";
+        }
+        return headers;
+    },
     proxyReqPathResolver: function (req) {
         return "/files" + req.url;
     }
 }))
 app.get("/api/me", protect, getCurrentUser)
 app.get("/", (req, res) => {
-    res.json({ message: "hello from gateway v5" })
+    res.json({ message: "hello from gateway v6" })
 })
 
 app.listen(port, () => {
     console.log(`gateway started at ${port}`)
 })
+
 
