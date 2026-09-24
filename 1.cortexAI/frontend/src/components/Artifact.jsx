@@ -25,6 +25,15 @@ function Artifact() {
     }
   }, [artifacts])
 
+  useEffect(() => {
+    const handleOpen = () => {
+      setCollapsed(false)
+      setMobileOpen(true)
+    }
+    window.addEventListener('open-artifact-panel', handleOpen)
+    return () => window.removeEventListener('open-artifact-panel', handleOpen)
+  }, [])
+
   if (!artifacts || artifacts.length === 0) return null;
 
   const currentFile = editableFiles[activeFile] || artifacts[0]?.files?.[activeFile]

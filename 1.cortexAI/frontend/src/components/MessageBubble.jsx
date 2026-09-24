@@ -7,18 +7,17 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import MermaidRenderer from './MermaidRenderer';
 import { setArtifacts } from '../redux/messageSlice';
+import { extractCodeArtifacts } from '../utils/extractCodeArtifacts';
 
 const resolveFileUrl = (url) => {
   if (!url) return '';
   const serverBase = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
   const cleanBase = serverBase.replace(/\/$/, '');
 
-  // If it's a relative path like /api/files/...
   if (url.startsWith('/')) {
     return `${cleanBase}${url}`;
   }
 
-  // If the backend generated a localhost link but user is connected via a remote or custom host
   if (url.includes('localhost:8000') || url.includes('localhost:8003') || url.includes('127.0.0.1:8000') || url.includes('127.0.0.1:8003')) {
     try {
       const parsed = new URL(url);
@@ -29,35 +28,6 @@ const resolveFileUrl = (url) => {
   }
 
   return url;
-};
-
-const extractCodeArtifacts = (text) => {
-  if (!text || typeof text !== 'string') return null;
-  const codeBlockRegex = /```([a-zA-Z0-9_-]+)?\s*([\s\S]*?)```/g;
-  const files = [];
-  let match;
-  let index = 1;
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    const lang = (match[1] || 'javascript').toLowerCase();
-    const code = match[2].trim();
-    if (!code || lang === 'mermaid' || lang === 'diagram') continue;
-    let filename = `file${index}.${lang === 'html' ? 'html' : lang === 'css' ? 'css' : lang === 'python' ? 'py' : lang === 'typescript' || lang === 'ts' ? 'ts' : 'js'}`;
-    if (lang === 'html' && !files.find(f => f.name === 'index.html')) filename = 'index.html';
-    else if (lang === 'css' && !files.find(f => f.name === 'style.css')) filename = 'style.css';
-    else if ((lang === 'js' || lang === 'javascript') && !files.find(f => f.name === 'script.js')) filename = 'script.js';
-
-    files.push({ name: filename, content: code });
-    index++;
-  }
-  if (files.length > 0) {
-    return [{
-      id: Date.now(),
-      type: "Project",
-      title: "Extracted Code Project",
-      files
-    }];
-  }
-  return null;
 };
 
 function MessageBubble({ role, content, images, artifacts = [] }) {

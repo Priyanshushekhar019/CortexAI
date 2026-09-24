@@ -7,6 +7,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import getMessages from '../features/getMessages'
 import { setArtifacts, setMessages } from '../redux/messageSlice'
 import VoiceModeModal from './VoiceModeModal'
+import { extractCodeArtifacts } from '../utils/extractCodeArtifacts'
 
 function ChatArea() {
   const { selectedConversation } = useSelector(state => state.conversation)
@@ -22,11 +23,29 @@ function ChatArea() {
   useEffect(() => {
     const getMesg = async () => {
       if (selectedConversation) {
-        if (selectedConversation.title === "New Chat") return;
+        if (selectedConversation.title === "New Chat") {
+          dispatch(setMessages([]))
+          dispatch(setArtifacts([]))
+          return;
+        }
         const data = await getMessages(selectedConversation?._id)
         dispatch(setMessages(data || []))
         const latestArtifactMessage = [...(data || [])].reverse().find(msg => msg.artifacts && msg.artifacts.length > 0)
-        dispatch(setArtifacts(latestArtifactMessage?.artifacts || []))
+        if (latestArtifactMessage?.artifacts?.length > 0) {
+          dispatch(setArtifacts(latestArtifactMessage.artifacts))
+        } else {
+          const latestCodeMessage = [...(data || [])].reverse().find(msg => msg.role === 'assistant' && msg.content && msg.content.includes('```'))
+          if (latestCodeMessage) {
+            const extracted = extractCodeArtifacts(latestCodeMessage.content)
+            if (extracted) dispatch(setArtifacts(extracted))
+            else dispatch(setArtifacts([]))
+          } else {
+            dispatch(setArtifacts([]))
+          }
+        }
+      } else {
+        dispatch(setMessages([]))
+        dispatch(setArtifacts([]))
       }
     }
 

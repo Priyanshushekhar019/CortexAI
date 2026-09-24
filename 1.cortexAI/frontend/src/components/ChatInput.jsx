@@ -61,8 +61,10 @@ function ChatInput({ isVoiceModalOpen, onOpenVoiceModal, onCloseVoiceModal }) {
 
     const data = await sendMessage(formData)
     dispatch(setIsLoading(false))
-    dispatch(setArtifacts(data.artifacts || []))
-    dispatch(addMessage({ role: "assistant", content: data?.answer, images: data?.images }))
+    if (data?.artifacts && data.artifacts.length > 0) {
+      dispatch(setArtifacts(data.artifacts))
+    }
+    dispatch(addMessage({ role: "assistant", content: data?.answer, images: data?.images, artifacts: data?.artifacts }))
   }
 
   const agents = [

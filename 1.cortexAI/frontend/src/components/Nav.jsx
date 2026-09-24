@@ -1,10 +1,10 @@
-import { MessageSquare, LayoutGrid, Mic, Sparkles } from 'lucide-react'
+import { MessageSquare, LayoutGrid, Mic, Sparkles, Code2 } from 'lucide-react'
 import React from 'react'
 import { useSelector } from 'react-redux'
 
 function Nav({ viewMode = 'chat', onViewChange, onOpenVoiceMode }) {
   const { selectedConversation } = useSelector(state => state.conversation)
-  const { messages } = useSelector(state => state.message)
+  const { messages, artifacts } = useSelector(state => state.message)
 
   return (
     <div className='h-14 flex items-center justify-between px-5 border-b border-white/[0.06] bg-[#0d0f14] shrink-0'>
@@ -21,6 +21,18 @@ function Nav({ viewMode = 'chat', onViewChange, onOpenVoiceMode }) {
       </div>
 
       <div className='flex items-center gap-2'>
+        {/* Sandbox Quick Opener if code/artifacts exist */}
+        {artifacts && artifacts.length > 0 && (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-artifact-panel'))}
+            className='flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 hover:bg-indigo-500/20 transition text-xs font-medium cursor-pointer'
+            title="Open Code Artifact Sandbox"
+          >
+            <Code2 size={13} className="text-indigo-400" />
+            <span className="hidden md:inline">Code Sandbox</span>
+          </button>
+        )}
+
         {/* View Mode Switcher: Chat vs Canvas */}
         <div className='flex items-center bg-white/[0.03] border border-white/[0.07] p-1 rounded-xl'>
           <button
