@@ -8,15 +8,19 @@ import { addConversation, setConvTitle, setSelectedConversation } from '../redux
 import { updateConversation } from '../features/updateConversation'
 import VoiceModeModal from './VoiceModeModal'
 
-function ChatInput({ onOpenVoiceModal }) {
+function ChatInput({ isVoiceModalOpen, onOpenVoiceModal, onCloseVoiceModal }) {
   const [value, setValue] = useState("")
   const [selectedAgent, setSelectedAgent] = useState("Auto")
   const { selectedConversation } = useSelector(state => state.conversation)
   const { messages, isLoading } = useSelector(state => state.message)
   const [selectedFiles, setSelectedFiles] = useState([])
-  const [isVoiceOpen, setIsVoiceOpen] = useState(false)
+  const [localVoiceOpen, setLocalVoiceOpen] = useState(false)
   const fileRef = useRef(null)
   const dispatch = useDispatch()
+
+  const isVoiceOpen = isVoiceModalOpen !== undefined ? isVoiceModalOpen : localVoiceOpen
+  const handleOpenVoice = onOpenVoiceModal || (() => setLocalVoiceOpen(true))
+  const handleCloseVoice = onCloseVoiceModal || (() => setLocalVoiceOpen(false))
 
   const latestAssistantMessage = messages
     ?.filter(m => m.role === "assistant")
@@ -176,7 +180,7 @@ function ChatInput({ onOpenVoiceModal }) {
             </button>
 
             <button
-              onClick={() => setIsVoiceOpen(true)}
+              onClick={handleOpenVoice}
               className='flex items-center justify-center w-8 h-8 rounded-lg text-indigo-400 hover:text-indigo-200 hover:bg-indigo-500/10 border border-transparent hover:border-indigo-500/20 transition cursor-pointer'
               title="Open Voice Mode"
             >
@@ -201,7 +205,7 @@ function ChatInput({ onOpenVoiceModal }) {
       {/* Voice Mode Modal */}
       <VoiceModeModal
         isOpen={isVoiceOpen}
-        onClose={() => setIsVoiceOpen(false)}
+        onClose={handleCloseVoice}
         onSendMessage={(spokenText) => {
           handleSendMessage(spokenText)
         }}

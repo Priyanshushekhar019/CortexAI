@@ -22,22 +22,37 @@ function Home() {
         try {
             const { data } = await api.post("/api/auth/login", { token })
             dispatch(setUserdata(data))
+            setIsAuthenticating(false)
         } catch (error) {
             console.error("Login attempt error:", error)
             if (retries > 0) {
-                setTimeout(() => handleLogin(token, retries - 1), 1500)
+                setTimeout(() => handleLogin(token, retries - 1), 1000)
             } else {
                 setAuthError("Failed to connect to authentication server. Please try again.")
+                setIsAuthenticating(false)
             }
-        } finally {
-            setIsAuthenticating(false)
         }
     }
 
     const googleLogin = async () => {
         try {
             setAuthError("")
+            setIsAuthenticating(true)
             const data = await signInWithPopup(auth, googleProvider)
+            
+            // Set immediate provisional profile to unlock UI without waiting
+            if (data?.user) {
+                dispatch(setUserdata({
+                    firebaseUid: data.user.uid,
+                    name: data.user.displayName || data.user.email?.split("@")[0] || "User",
+                    email: data.user.email,
+                    avatar: data.user.photoURL || "",
+                    plan: "free",
+                    credits: 100,
+                    totalCredits: 100
+                }))
+            }
+
             const token = await data.user.getIdToken()
             await handleLogin(token)
         } catch (error) {

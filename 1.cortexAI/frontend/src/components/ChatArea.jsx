@@ -46,20 +46,13 @@ function ChatArea() {
       ) : (
         <>
           <MessageList />
-          <ChatInput />
+          <ChatInput 
+            isVoiceModalOpen={isNavVoiceOpen}
+            onOpenVoiceModal={() => setIsNavVoiceOpen(true)}
+            onCloseVoiceModal={() => setIsNavVoiceOpen(false)}
+          />
         </>
       )}
-
-      {/* Nav-triggered Voice Mode */}
-      <VoiceModeModal
-        isOpen={isNavVoiceOpen}
-        onClose={() => setIsNavVoiceOpen(false)}
-        onSendMessage={(text) => {
-          // Handled via input dispatch
-        }}
-        isAiResponding={isLoading}
-        latestAiMessage={latestAssistantMessage}
-      />
     </div>
   )
 }

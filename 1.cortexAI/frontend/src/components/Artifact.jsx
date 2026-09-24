@@ -16,11 +16,12 @@ function Artifact() {
   const [isZipping, setIsZipping] = useState(false)
   const [editableFiles, setEditableFiles] = useState([])
 
-  // Keep local editable copy of files
+  // Keep local editable copy of files and ensure panel is expanded
   useEffect(() => {
     if (artifacts && artifacts.length > 0 && artifacts[0]?.files) {
       setEditableFiles(artifacts[0].files.map(f => ({ ...f })))
       setActiveFile(0)
+      setCollapsed(false)
     }
   }, [artifacts])
 

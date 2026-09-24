@@ -17,7 +17,22 @@ const port = process.env.AGENT_PORT || 8003
 const app = express()
 
 app.use(express.json())
-app.use("/files", express.static(filesDir))
+
+// Serve generated files with CORS and attachment headers for offline saving
+app.use("/files", (req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    if (req.method === "OPTIONS") return res.status(200).end();
+    next();
+}, express.static(filesDir, {
+    setHeaders: (res, filePath) => {
+        const filename = path.basename(filePath);
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    }
+}))
+
 app.use("/", router)
 
 app.use((err, req, res, next) => {

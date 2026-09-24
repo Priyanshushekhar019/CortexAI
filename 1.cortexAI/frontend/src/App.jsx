@@ -8,20 +8,30 @@ import { useDispatch } from 'react-redux'
 import { setUserdata } from './redux/userSlice'
 
 function App() {
+  const dispatch = useDispatch()
 
-const dispatch=useDispatch()
-useEffect(()=>{
-  const getUser=async ()=>{
-    const data=await getCurrentUser()
-    dispatch(setUserdata(data))
-  }
-  getUser()
-},[])
+  useEffect(() => {
+    // 1. Silent non-blocking server wake-up ping (wakes sleeping Render containers immediately)
+    api.get("/").catch(() => {})
+
+    // 2. Background session validation
+    const checkSession = async () => {
+      try {
+        const data = await getCurrentUser()
+        if (data) {
+          dispatch(setUserdata(data))
+        }
+      } catch (err) {
+        console.debug("Session check notice:", err?.message)
+      }
+    }
+    checkSession()
+  }, [dispatch])
 
   return (
-   <>
-   <Home/>
-   </>
+    <>
+      <Home />
+    </>
   )
 }
 

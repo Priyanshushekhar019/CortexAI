@@ -1,19 +1,87 @@
-import { Check, Copy, Download, ExternalLink, FileText, FileX2, Presentation, Volume2, VolumeX, X } from 'lucide-react'
+import { Check, Code2, Copy, Download, ExternalLink, Eye, FileText, FileX2, Layers, Loader2, Presentation, Sparkles, Volume2, VolumeX, X } from 'lucide-react'
 import React, { useState, useRef, useEffect } from 'react'
+import { useDispatch } from 'react-redux'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import MermaidRenderer from './MermaidRenderer';
+import { setArtifacts } from '../redux/messageSlice';
 
-function MessageBubble({ role, content, images }) {
+const resolveFileUrl = (url) => {
+  if (!url) return '';
+  const serverBase = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
+  const cleanBase = serverBase.replace(/\/$/, '');
+
+  // If it's a relative path like /api/files/...
+  if (url.startsWith('/')) {
+    return `${cleanBase}${url}`;
+  }
+
+  // If the backend generated a localhost link but user is connected via a remote or custom host
+  if (url.includes('localhost:8000') || url.includes('localhost:8003') || url.includes('127.0.0.1:8000') || url.includes('127.0.0.1:8003')) {
+    try {
+      const parsed = new URL(url);
+      return `${cleanBase}${parsed.pathname}${parsed.search}`;
+    } catch {
+      return url;
+    }
+  }
+
+  return url;
+};
+
+const extractCodeArtifacts = (text) => {
+  if (!text || typeof text !== 'string') return null;
+  const codeBlockRegex = /```([a-zA-Z0-9_-]+)?\s*([\s\S]*?)```/g;
+  const files = [];
+  let match;
+  let index = 1;
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    const lang = (match[1] || 'javascript').toLowerCase();
+    const code = match[2].trim();
+    if (!code || lang === 'mermaid' || lang === 'diagram') continue;
+    let filename = `file${index}.${lang === 'html' ? 'html' : lang === 'css' ? 'css' : lang === 'python' ? 'py' : lang === 'typescript' || lang === 'ts' ? 'ts' : 'js'}`;
+    if (lang === 'html' && !files.find(f => f.name === 'index.html')) filename = 'index.html';
+    else if (lang === 'css' && !files.find(f => f.name === 'style.css')) filename = 'style.css';
+    else if ((lang === 'js' || lang === 'javascript') && !files.find(f => f.name === 'script.js')) filename = 'script.js';
+
+    files.push({ name: filename, content: code });
+    index++;
+  }
+  if (files.length > 0) {
+    return [{
+      id: Date.now(),
+      type: "Project",
+      title: "Extracted Code Project",
+      files
+    }];
+  }
+  return null;
+};
+
+function MessageBubble({ role, content, images, artifacts = [] }) {
   const isUser = role === "user"
+  const dispatch = useDispatch()
   const [lightBox, setLightBox] = useState(null)
   const [copiedCode, setCopiedCode] = useState("")
   const [isCopiedMsg, setIsCopiedMsg] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [downloadingImg, setDownloadingImg] = useState(null)
+  const [downloadingFile, setDownloadingFile] = useState(null)
   const synthRef = useRef(window.speechSynthesis)
+
+  const effectiveArtifacts = (artifacts && artifacts.length > 0)
+    ? artifacts
+    : extractCodeArtifacts(content)
+
+  const hasArtifacts = !isUser && effectiveArtifacts && effectiveArtifacts.length > 0 && effectiveArtifacts[0]?.files?.length > 0
+
+  const handleOpenArtifact = () => {
+    if (hasArtifacts) {
+      dispatch(setArtifacts(effectiveArtifacts))
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -38,45 +106,95 @@ function MessageBubble({ role, content, images }) {
   }
 
   const toggleSpeak = () => {
-    if (!synthRef.current) return;
-
-    if (isSpeaking) {
-      synthRef.current.cancel()
-      setIsSpeaking(false)
-      return;
+    if (!window.speechSynthesis) {
+      alert("Text-to-speech is not supported in this browser.")
+      return
     }
 
-    synthRef.current.cancel()
+    if (isSpeaking) {
+      window.speechSynthesis.cancel()
+      setIsSpeaking(false)
+      return
+    }
 
-    // Clean markdown before speaking
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.resume()
+
+    // Clean markdown cleanly before speaking
     const cleanText = (content || "")
       .replace(/```[\s\S]*?```/g, 'Code block.')
+      .replace(/!\[.*?\]\(.*?\)/g, 'Image.')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/[#*`_~[\]()]/g, '')
-      .replace(/!\[.*?\]\(.*?\)/g, '')
-      .replace(/📥 \[Download.*?\]\(.*?\)/gi, '')
+      .replace(/📥\s*Download.*$/gim, '')
       .trim()
 
-    if (!cleanText) return;
+    if (!cleanText) return
 
     const utterance = new SpeechSynthesisUtterance(cleanText)
-    utterance.rate = 1.05
+    utterance.rate = 1.0
     utterance.pitch = 1.0
+    utterance.lang = 'en-US'
 
-    const voices = synthRef.current.getVoices()
-    const naturalVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha')))
-    if (naturalVoice) utterance.voice = naturalVoice
+    const voices = window.speechSynthesis.getVoices()
+    if (voices && voices.length > 0) {
+      const naturalVoice = voices.find(v => 
+        v.lang?.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Jenny') || v.name.includes('Guy') || v.name.includes('Aria'))
+      ) || voices.find(v => v.lang?.startsWith('en')) || voices[0]
+      if (naturalVoice) utterance.voice = naturalVoice
+    }
 
     utterance.onstart = () => setIsSpeaking(true)
     utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = () => setIsSpeaking(false)
+    utterance.onerror = (e) => {
+      console.warn("Speech synthesis error:", e)
+      setIsSpeaking(false)
+    }
 
-    synthRef.current.speak(utterance)
+    window.speechSynthesis.speak(utterance)
+    window._activeUtterance = utterance
+  }
+
+  const handleDownloadFile = async (rawUrl, defaultName = 'download.pdf') => {
+    const targetUrl = resolveFileUrl(rawUrl)
+    try {
+      setDownloadingFile(rawUrl)
+      const res = await fetch(targetUrl, { mode: 'cors' })
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`)
+      const blob = await res.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+
+      // Determine clean filename
+      let filename = defaultName
+      try {
+        const parsed = new URL(targetUrl)
+        const parts = parsed.pathname.split('/')
+        const last = parts[parts.length - 1]
+        if (last && last.includes('.')) {
+          filename = decodeURIComponent(last)
+        }
+      } catch (_) {}
+
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      console.warn("Direct blob download failed, falling back to window.open:", err)
+      window.open(targetUrl, '_blank')
+    } finally {
+      setDownloadingFile(null)
+    }
   }
 
   const handleDownloadImage = async (imgUrl, defaultName = `cortex-image-${Date.now()}.png`) => {
+    const targetUrl = resolveFileUrl(imgUrl)
     try {
       setDownloadingImg(imgUrl)
-      const res = await fetch(imgUrl)
+      const res = await fetch(targetUrl, { mode: 'cors' })
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -88,7 +206,7 @@ function MessageBubble({ role, content, images }) {
       URL.revokeObjectURL(url)
     } catch (err) {
       console.warn("Direct blob download failed, opening in new tab:", err)
-      window.open(imgUrl, '_blank')
+      window.open(targetUrl, '_blank')
     } finally {
       setDownloadingImg(null)
     }
@@ -166,22 +284,38 @@ function MessageBubble({ role, content, images }) {
               </td>
             ),
             a: ({ href, children }) => {
-              const isPdf = href?.includes(".pdf") || String(children).toLowerCase().includes("pdf")
-              const isPpt = href?.includes(".pptx") || String(children).toLowerCase().includes("ppt")
+              const hrefLower = (href || '').toLowerCase()
+              const textLower = String(children || '').toLowerCase()
 
-              if (isPdf || isPpt) {
+              const isPdf = hrefLower.includes('.pdf') || textLower.includes('pdf')
+              const isPpt = hrefLower.includes('.ppt') || hrefLower.includes('.pptx') || textLower.includes('ppt') || textLower.includes('presentation')
+              const isDownloadable = isPdf || isPpt || hrefLower.includes('/api/files/') || textLower.includes('download')
+
+              if (isDownloadable) {
+                const isDownloading = downloadingFile === href
+                const ext = isPdf ? '.pdf' : isPpt ? '.pptx' : ''
+                const fallbackName = `cortex-${isPdf ? 'document' : isPpt ? 'presentation' : 'file'}-${Date.now()}${ext}`
+
                 return (
-                  <a
-                    href={href}
-                    download
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 my-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold shadow-lg shadow-indigo-500/20 transition no-underline cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadFile(href, fallbackName)}
+                    disabled={isDownloading}
+                    className="inline-flex items-center gap-2 my-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-95 text-white text-xs font-semibold shadow-lg shadow-indigo-500/20 transition cursor-pointer disabled:opacity-75 select-none"
+                    title="Download file directly to your device for offline use"
                   >
-                    {isPdf ? <FileText size={15} /> : <Presentation size={15} />}
-                    <span>{children}</span>
-                    <Download size={13} className="ml-0.5 opacity-90" />
-                  </a>
+                    {isDownloading ? (
+                      <Loader2 size={15} className="animate-spin text-white" />
+                    ) : isPdf ? (
+                      <FileText size={15} />
+                    ) : isPpt ? (
+                      <Presentation size={15} />
+                    ) : (
+                      <FileText size={15} />
+                    )}
+                    <span>{isDownloading ? "Saving to device..." : children}</span>
+                    {!isDownloading && <Download size={13} className="ml-0.5 opacity-90" />}
+                  </button>
                 )
               }
 
@@ -284,6 +418,43 @@ function MessageBubble({ role, content, images }) {
         >
           {content}
         </Markdown>
+
+        {/* Interactive Artifact / Code Sandbox Opener Card */}
+        {hasArtifacts && (
+          <div className='mt-3.5 pt-3 border-t border-white/10'>
+            <div
+              onClick={handleOpenArtifact}
+              className='group/art p-3 rounded-xl bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-indigo-900/20 hover:from-indigo-900/50 hover:via-purple-900/40 hover:to-indigo-800/30 border border-indigo-500/30 hover:border-indigo-400/50 flex items-center justify-between gap-3 shadow-lg shadow-indigo-950/40 transition duration-200 cursor-pointer'
+              title="Click to load this code in the Artifact Sandbox"
+            >
+              <div className='flex items-center gap-2.5 min-w-0'>
+                <div className='w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center shrink-0 group-hover/art:scale-105 transition'>
+                  <Code2 className="text-indigo-400" size={16} />
+                </div>
+                <div className='min-w-0'>
+                  <div className='text-xs font-semibold text-indigo-200 group-hover/art:text-white truncate'>
+                    {effectiveArtifacts[0]?.title || "Generated Project"}
+                  </div>
+                  <div className='text-[11px] text-slate-400'>
+                    {(effectiveArtifacts[0]?.files || []).length} project file{(effectiveArtifacts[0]?.files || []).length !== 1 ? 's' : ''} available to view & live-edit
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type='button'
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleOpenArtifact()
+                }}
+                className='px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-medium transition flex items-center gap-1.5 shrink-0 shadow-md shadow-indigo-600/30 cursor-pointer select-none'
+              >
+                <Eye size={13} />
+                <span>Open in Sandbox</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Message Action Bar (Copy & Voice Read-Aloud) for Assistant Messages */}

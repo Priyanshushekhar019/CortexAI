@@ -58,10 +58,12 @@ app.use("/api/billing", protect, proxyWithHeader(billingService))
 app.use("/api/files", proxy(agentService, {
     timeout: 120000,
     userResHeaderDecorator(headers, userReq) {
+        const origin = userReq.headers.origin || "*";
+        headers["access-control-allow-origin"] = origin;
         if (userReq.headers.origin) {
-            headers["access-control-allow-origin"] = userReq.headers.origin;
             headers["access-control-allow-credentials"] = "true";
         }
+        headers["cross-origin-resource-policy"] = "cross-origin";
         return headers;
     },
     proxyReqPathResolver: function (req) {

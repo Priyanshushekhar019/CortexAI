@@ -13,24 +13,26 @@ export const login = async (req, res) => {
         }
 
         const decoded = await getAuth(app).verifyIdToken(token)
-        let user = await User.findOne({
-            firebaseUid: decoded.uid
-        })
-
-        if (!user) {
-            user = await User.create({
-                firebaseUid: decoded.uid,
-                name: decoded.name || decoded.email?.split("@")[0] || "User",
-                email: decoded.email,
-                avatar: decoded.picture || ""
-            })
-        }
+        
+        // Fast atomic upsert in a single database roundtrip
+        const user = await User.findOneAndUpdate(
+            { firebaseUid: decoded.uid },
+            {
+                $setOnInsert: {
+                    firebaseUid: decoded.uid,
+                    name: decoded.name || decoded.email?.split("@")[0] || "User",
+                    email: decoded.email,
+                    avatar: decoded.picture || "",
+                    plan: "free",
+                    credits: 100,
+                    totalCredits: 100
+                }
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        ).lean()
 
         const sessionId = crypto.randomUUID()
-        await redis.set(`user-session-${user?._id}`,
-            sessionId
-            , "EX", 7 * 24 * 60 * 60)
-        await redis.set(`session-${sessionId}`, JSON.stringify({
+        const sessionPayload = JSON.stringify({
             userId: user._id,
             name: user.name,
             email: user.email,
@@ -39,9 +41,13 @@ export const login = async (req, res) => {
             credits: user.credits,
             totalCredits: user.totalCredits,
             planExpiresAt: user.planExpiresAt
-        }), "EX", 7 * 24 * 60 * 60)
+        })
 
-        const isProduction = process.env.NODE_ENV === "production" || Boolean(process.env.FRONTEND_URL?.includes("vercel.app"));
+        // Execute Redis operations concurrently
+        await Promise.all([
+            redis.set(`user-session-${user._id}`, sessionId, "EX", 7 * 24 * 60 * 60),
+            redis.set(`session-${sessionId}`, sessionPayload, "EX", 7 * 24 * 60 * 60)
+        ])
 
         res.cookie("session", sessionId, {
             httpOnly: true,
