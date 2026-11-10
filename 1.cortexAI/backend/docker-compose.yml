@@ -1,5 +1,101 @@
+version: "3.8"
+
 services:
-  redis:
-    image: redis
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: cortex-gateway
+    restart: unless-stopped
     ports:
-      - 6379:6379
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - AUTH_SERVICE=http://auth:8001
+      - CHAT_SERVICE=http://chat:8002
+      - AGENT_SERVICE=http://agent:8003
+      - BILLING_SERVICE=http://billing:8004
+      - FRONTEND_URL=http://localhost:5173
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - auth
+      - chat
+      - agent
+      - billing
+      - redis
+
+  auth:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    container_name: cortex-auth
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - ./services/auth/.env
+    depends_on:
+      - redis
+
+  chat:
+    build:
+      context: .
+      dockerfile: services/chat/Dockerfile
+    container_name: cortex-chat
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+    env_file:
+      - ./services/chat/.env
+
+  agent:
+    build:
+      context: .
+      dockerfile: services/agent/Dockerfile
+    container_name: cortex-agent
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      - PORT=8003
+      - AUTH_SERVICE=http://auth:8001
+      - CHAT_SERVICE=http://chat:8002
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - ./services/agent/.env
+    depends_on:
+      - auth
+      - chat
+      - redis
+
+  billing:
+    build:
+      context: .
+      dockerfile: services/billing/Dockerfile
+    container_name: cortex-billing
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      - PORT=8004
+      - AUTH_SERVICE=http://auth:8001
+    env_file:
+      - ./services/billing/.env
+    depends_on:
+      - auth
+
+  redis:
+    image: redis:7-alpine
+    container_name: cortex-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+networks:
+  default:
+    name: cortex-network

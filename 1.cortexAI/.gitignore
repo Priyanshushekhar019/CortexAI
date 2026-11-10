@@ -60,11 +60,6 @@ serviceAccountKey.json
 firebase-adminsdk*.json
 
 # =========================
-# Docker
-# =========================
-.dockerignore
-
-# =========================
 # Misc
 # =========================
 .cache/

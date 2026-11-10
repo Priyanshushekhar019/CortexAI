@@ -110,7 +110,7 @@ function ChatInput({ isVoiceModalOpen, onOpenVoiceModal, onCloseVoiceModal }) {
           </div>
 
           <button
-            onClick={() => setIsVoiceOpen(true)}
+            onClick={handleOpenVoice}
             className="hidden sm:flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 px-2.5 py-1 rounded-full transition cursor-pointer"
           >
             <Mic size={12} />

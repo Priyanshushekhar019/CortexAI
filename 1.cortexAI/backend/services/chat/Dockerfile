@@ -1,19 +1,16 @@
-FROM node
+FROM node:20-slim
 
 WORKDIR /app
 
+# 1. Install Chat service dependencies
+COPY services/chat/package*.json ./services/chat/
+RUN cd services/chat && npm install --omit=dev
 
-COPY package*.json ./
-RUN npm install
-
-COPY ./services/chat/package*.json ./services/chat/
-RUN cd services/chat && npm install
-
+# 2. Copy Chat source code
 COPY services/chat ./services/chat
-COPY shared ./shared
 
 WORKDIR /app/services/chat
 
 EXPOSE 8002
 
-CMD [ "npm","start" ]
+CMD ["npm", "start"]

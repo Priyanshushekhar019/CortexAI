@@ -1,19 +1,16 @@
-FROM node
+FROM node:20-slim
 
 WORKDIR /app
 
+# 1. Install Billing service dependencies
+COPY services/billing/package*.json ./services/billing/
+RUN cd services/billing && npm install --omit=dev
 
-COPY package*.json ./
-RUN npm install
-
-COPY ./services/billing/package*.json ./services/billing/
-RUN cd services/billing && npm install
-
+# 2. Copy Billing source code
 COPY services/billing ./services/billing
-COPY shared ./shared
 
 WORKDIR /app/services/billing
 
 EXPOSE 8004
 
-CMD [ "npm","start" ]
+CMD ["npm", "start"]
