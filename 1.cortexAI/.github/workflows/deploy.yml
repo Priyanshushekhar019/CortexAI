@@ -13,6 +13,9 @@ jobs:
 
   deploy-backend:
      runs-on: ubuntu-latest 
+     defaults:
+       run:
+         working-directory: 1.cortexAI
      steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -139,6 +142,9 @@ jobs:
   deploy-frontend:
     needs: deploy-backend
     runs-on: ubuntu-latest 
+    defaults:
+      run:
+        working-directory: 1.cortexAI
     steps:
       - name: Checkout
         uses: actions/checkout@v4 
