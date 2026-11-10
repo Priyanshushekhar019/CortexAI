@@ -47,7 +47,7 @@ app.use("/api/auth", proxy(authService, {
         }
         return headers;
     },
-    proxyErrorHandler: function(err, res, next) {
+    proxyErrorHandler: function (err, res, next) {
         console.error("Auth proxy error:", err);
         res.status(500).json({ message: "Auth service connection error", error: err?.message });
     }
@@ -72,7 +72,7 @@ app.use("/api/files", proxy(agentService, {
 }))
 app.get("/api/me", protect, getCurrentUser)
 app.get("/", (req, res) => {
-    res.json({ message: "hello from gateway v6" })
+    res.json({ message: "hello from gateway v5" })
 })
 
 app.listen(port, () => {
