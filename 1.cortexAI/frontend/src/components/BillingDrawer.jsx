@@ -24,7 +24,7 @@ function BillingDrawer({ open, onClose }) {
             }
 
             const options = {
-                key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+                key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_TasNBBKmaAMSo8",
                 amount: data?.order?.amount,
                 currency: data?.order?.currency,
                 name: "CortexAI",
